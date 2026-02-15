@@ -16,7 +16,7 @@ const INSTAGRAM_URL = process.env.NEXT_PUBLIC_INSTAGRAM_URL as string
 const GITHUB_URL = process.env.NEXT_PUBLIC_GITHUB_URL as string
 const LINKEDIN_URL = process.env.NEXT_PUBLIC_LINKEDIN_URL as string
 
-const keyboardPianoOgImage = resolveOgImage('/og-keyboard-piano.png')
+const keyboardPianoOgImage = resolveOgImage('/kiano-graph.png')
 
 export const metadata: Metadata = {
   title: 'Kiano',

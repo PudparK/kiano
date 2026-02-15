@@ -4,16 +4,18 @@ import { ContainerInner, ContainerOuter } from '@/components/Container'
 
 function NavLink({
   href,
+  external = false,
   children,
 }: {
   href: string
+  external?: boolean
   children: React.ReactNode
 }) {
   return (
     <Link
       href={href}
-      target="_blank"
-      rel="noopener noreferrer"
+      target={external ? '_blank' : undefined}
+      rel={external ? 'noopener noreferrer' : undefined}
       className="transition hover:text-secondary dark:hover:text-secondary"
     >
       {children}
@@ -29,9 +31,17 @@ export function Footer() {
           <ContainerInner>
             <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
               <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                <NavLink href="https://paulbarron.dev/about">About</NavLink>
-                <NavLink href="https://paulbarron.dev/articles">Articles</NavLink>
-                <NavLink href="https://paulbarron.dev/projects">Projects</NavLink>
+                <NavLink href="/">Kiano</NavLink>
+                <NavLink href="/projects/keyboard-piano/game">Game</NavLink>
+                <NavLink href="https://paulbarron.dev/about" external>
+                  About
+                </NavLink>
+                <NavLink href="https://paulbarron.dev/articles" external>
+                  Articles
+                </NavLink>
+                <NavLink href="https://paulbarron.dev/projects" external>
+                  Projects
+                </NavLink>
               </div>
               <p className="text-sm text-zinc-400 dark:text-zinc-500">
                 &copy; {new Date().getFullYear()} Paul Barrón. All rights reserved.

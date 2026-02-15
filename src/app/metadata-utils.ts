@@ -10,7 +10,7 @@ function hasPublicAsset(assetPath: string) {
 }
 
 export function resolveOgImage(preferredPath: string) {
-  const candidates = [preferredPath, '/og-default.png', '/graph-image.png']
+  const candidates = [preferredPath, '/kiano-graph.png', '/og-default.png', '/graph-image.png']
   for (const candidate of candidates) {
     if (hasPublicAsset(candidate)) return candidate
   }

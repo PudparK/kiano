@@ -14,7 +14,7 @@ const SUBSTACK_URL = process.env.NEXT_PUBLIC_SUBSTACK_URL as string
 const INSTAGRAM_URL = process.env.NEXT_PUBLIC_INSTAGRAM_URL as string
 const GITHUB_URL = process.env.NEXT_PUBLIC_GITHUB_URL as string
 const LINKEDIN_URL = process.env.NEXT_PUBLIC_LINKEDIN_URL as string
-const noteTrainerOgImage = resolveOgImage('/og-note-trainer.png')
+const noteTrainerOgImage = resolveOgImage('/note-trainer-graph.png')
 
 export const metadata: Metadata = {
   title: 'Note Trainer',
