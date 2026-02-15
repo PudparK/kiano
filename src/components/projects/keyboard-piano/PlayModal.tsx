@@ -37,6 +37,7 @@ export default function PlayModal({ open, onClose }: PlayModalProps) {
             <li>Correct note: score and streak increase</li>
             <li>Missed note: streak resets</li>
             <li>Play with keyboard only, no rhythm required</li>
+            <li>Trainer shows full note names (C4, D#4) to help you learn faster.</li>
           </ul>
 
           <div className="flex items-center justify-end">

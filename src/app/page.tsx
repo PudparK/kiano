@@ -13,6 +13,9 @@ const SUBSTACK_URL = process.env.NEXT_PUBLIC_SUBSTACK_URL as string
 const INSTAGRAM_URL = process.env.NEXT_PUBLIC_INSTAGRAM_URL as string
 const GITHUB_URL = process.env.NEXT_PUBLIC_GITHUB_URL as string
 const LINKEDIN_URL = process.env.NEXT_PUBLIC_LINKEDIN_URL as string
+const TAGLINE =
+  process.env.NEXT_PUBLIC_TAGLINE ??
+  'If Kiano helped you find your rhythm, coffee keeps it playing.'
 
 function SocialLink({
   href,
@@ -52,6 +55,9 @@ export default function HomePage() {
             <SocialLink href={GITHUB_URL} label="GitHub" icon={GitHubIcon} />
             <SocialLink href={LINKEDIN_URL} label="LinkedIn" icon={LinkedInIcon} />
           </div>
+          <p className="mx-auto mb-4 max-w-xl text-center text-sm text-zinc-500 italic dark:text-zinc-400">
+            {TAGLINE}
+          </p>
           <div className="mt-6 flex items-center justify-center gap-x-6">
             <BuyMeACoffee />
           </div>

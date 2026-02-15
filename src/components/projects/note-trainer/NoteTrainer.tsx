@@ -13,6 +13,16 @@ import {
 const ADVANCE_DELAY_MS = 400
 const SPEED_OPTIONS = [3, 5, 8] as const
 const SPEED_STORAGE_KEY = 'noteTrainerSpeed'
+const WHITE_KEYS = ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';'] as const
+const BLACK_KEYS = [
+  { key: 'w', leftClass: 'left-[calc(10%-3.125%)]' },
+  { key: 'e', leftClass: 'left-[calc(20%-3.125%)]' },
+  { key: 't', leftClass: 'left-[calc(40%-3.125%)]' },
+  { key: 'y', leftClass: 'left-[calc(50%-3.125%)]' },
+  { key: 'u', leftClass: 'left-[calc(60%-3.125%)]' },
+  { key: 'o', leftClass: 'left-[calc(80%-3.125%)]' },
+  { key: 'p', leftClass: 'left-[calc(90%-3.125%)]' },
+] as const
 
 type GameState = 'idle' | 'running' | 'paused'
 
@@ -22,21 +32,14 @@ function nextNote(prev: string | null) {
   return pool[index] ?? NOTE_ORDER[0]
 }
 
-function getInitialSpeed() {
-  if (typeof window === 'undefined') return 5
-  const raw = window.localStorage.getItem(SPEED_STORAGE_KEY)
-  const parsed = Number(raw)
-  return SPEED_OPTIONS.includes(parsed as (typeof SPEED_OPTIONS)[number]) ? parsed : 5
-}
-
 export default function NoteTrainer() {
   const [gameState, setGameState] = useState<GameState>('idle')
-  const [targetNote, setTargetNote] = useState<string>(() => nextNote(null))
+  const [targetNote, setTargetNote] = useState<string>(NOTE_ORDER[0])
   const [score, setScore] = useState(0)
   const [streak, setStreak] = useState(0)
   const [best, setBest] = useState(0)
-  const [timePerNote, setTimePerNote] = useState<number>(() => getInitialSpeed())
-  const [timeLeftMs, setTimeLeftMs] = useState(() => getInitialSpeed() * 1000)
+  const [timePerNote, setTimePerNote] = useState<number>(5)
+  const [timeLeftMs, setTimeLeftMs] = useState(5000)
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(() => new Set())
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -44,6 +47,7 @@ export default function NoteTrainer() {
   const advanceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const beginRoundRef = useRef<(note: string) => void>(() => {})
   const roundResolvedRef = useRef(false)
+  const speedLoadedRef = useRef(false)
 
   const audioCtxRef = useRef<AudioContext | null>(null)
   const masterGainRef = useRef<GainNode | null>(null)
@@ -112,7 +116,7 @@ export default function NoteTrainer() {
 
   const playNote = useCallback(
     async (note: string) => {
-      const midi = noteNameToMidi(note as `${string}${number}`)
+      const midi = noteNameToMidi(note)
       if (midi == null) return
       await playTone(midiToFreq(midi), 'triangle', 220, 0.12)
     },
@@ -168,8 +172,8 @@ export default function NoteTrainer() {
   const startGame = useCallback(async () => {
     await ensureAudio()
     setGameState('running')
-    setTargetNote((prev) => {
-      const seed = prev ?? NOTE_ORDER[0]
+    setTargetNote(() => {
+      const seed = nextNote(null)
       beginRound(seed)
       return seed
     })
@@ -198,7 +202,28 @@ export default function NoteTrainer() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    window.localStorage.setItem(SPEED_STORAGE_KEY, String(timePerNote))
+    try {
+      const raw = window.localStorage.getItem(SPEED_STORAGE_KEY)
+      const parsed = Number(raw)
+      if (SPEED_OPTIONS.includes(parsed as (typeof SPEED_OPTIONS)[number])) {
+        setTimePerNote(parsed)
+        setTimeLeftMs(parsed * 1000)
+      }
+    } catch {
+      // ignore storage read errors
+    } finally {
+      speedLoadedRef.current = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!speedLoadedRef.current) return
+    try {
+      window.localStorage.setItem(SPEED_STORAGE_KEY, String(timePerNote))
+    } catch {
+      // ignore storage write errors
+    }
   }, [timePerNote])
 
   const handleSpeedChange = useCallback(
@@ -212,27 +237,11 @@ export default function NoteTrainer() {
     [beginRound, gameState, targetNote],
   )
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null
-      const tag = target?.tagName?.toLowerCase()
-      if (tag === 'input' || tag === 'textarea' || target?.isContentEditable) return
-
-      const key = e.key.toLowerCase()
-      const playedNote = keyToNoteName(key)
-      if (!playedNote) return
-      if (!e.repeat) {
-        setPressedKeys((prev) => {
-          const next = new Set(prev)
-          next.add(key)
-          return next
-        })
-      }
-
-      if (e.repeat || gameState !== 'running' || roundResolvedRef.current) return
-
+  const handlePlayedNote = useCallback(
+    (playedNote: string) => {
       void playNote(playedNote)
 
+      if (gameState !== 'running' || roundResolvedRef.current) return
       if (playedNote !== targetNote) return
 
       roundResolvedRef.current = true
@@ -252,6 +261,28 @@ export default function NoteTrainer() {
           return next
         })
       }, ADVANCE_DELAY_MS)
+    },
+    [beginRound, clearRoundTimers, gameState, playNote, playSuccess, targetNote],
+  )
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      const tag = target?.tagName?.toLowerCase()
+      if (tag === 'input' || tag === 'textarea' || target?.isContentEditable) return
+
+      const key = e.key.toLowerCase()
+      const playedNote = keyToNoteName(key)
+      if (!playedNote) return
+      e.preventDefault()
+      if (!e.repeat) {
+        setPressedKeys((prev) => {
+          const next = new Set(prev)
+          next.add(key)
+          return next
+        })
+        handlePlayedNote(playedNote)
+      }
     }
 
     const onKeyUp = (e: KeyboardEvent) => {
@@ -270,7 +301,7 @@ export default function NoteTrainer() {
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
     }
-  }, [beginRound, clearRoundTimers, gameState, playNote, playSuccess, targetNote])
+  }, [handlePlayedNote])
 
   useEffect(() => {
     const pauseForSafety = () => {
@@ -386,25 +417,111 @@ export default function NoteTrainer() {
       <div className="space-y-2">
         <p className="text-xs tracking-wide text-zinc-500 uppercase dark:text-zinc-400">Keyboard</p>
         <div className="rounded-xl bg-zinc-200/80 p-3 shadow-inner dark:bg-zinc-800">
-          <div className="grid grid-cols-8">
-            {Object.entries(KEY_TO_NOTE).map(([key, note]) => (
-              <div
-                key={key}
-                className={[
-                  'relative flex aspect-[1/2.5] min-w-0 w-full rounded bg-white shadow-sm transition dark:bg-zinc-100',
-                  pressedKeys.has(key)
-                    ? 'bg-zinc-300 ring-1 ring-zinc-500/35 dark:bg-zinc-300 dark:ring-zinc-500/35'
-                    : '',
-                ].join(' ')}
-              >
-                <span className="pointer-events-none absolute right-2 bottom-4 text-base font-semibold tracking-tight text-zinc-700">
-                  {note}
-                </span>
-                <span className="pointer-events-none absolute right-2 bottom-1 text-[10px] font-mono text-zinc-600 opacity-45">
-                  {key.toUpperCase()}
-                </span>
-              </div>
-            ))}
+          <div className="relative">
+            <div className="grid grid-cols-10">
+              {WHITE_KEYS.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onPointerDown={(e) => {
+                    e.preventDefault()
+                    setPressedKeys((prev) => {
+                      const next = new Set(prev)
+                      next.add(key)
+                      return next
+                    })
+                    handlePlayedNote(KEY_TO_NOTE[key])
+                  }}
+                  onPointerUp={(e) => {
+                    e.preventDefault()
+                    setPressedKeys((prev) => {
+                      const next = new Set(prev)
+                      next.delete(key)
+                      return next
+                    })
+                  }}
+                  onPointerCancel={() =>
+                    setPressedKeys((prev) => {
+                      const next = new Set(prev)
+                      next.delete(key)
+                      return next
+                    })
+                  }
+                  onPointerLeave={() =>
+                    setPressedKeys((prev) => {
+                      const next = new Set(prev)
+                      next.delete(key)
+                      return next
+                    })
+                  }
+                  className={[
+                    'relative flex aspect-[1/2.5] min-w-0 w-full cursor-pointer rounded bg-white shadow-sm transition dark:bg-zinc-100',
+                    pressedKeys.has(key)
+                      ? 'bg-zinc-300 ring-1 ring-zinc-500/35 dark:bg-zinc-300 dark:ring-zinc-500/35'
+                      : '',
+                  ].join(' ')}
+                >
+                  <span className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 text-xs font-semibold tracking-tight text-zinc-700 sm:right-2 sm:left-auto sm:translate-x-0 sm:text-base">
+                    {KEY_TO_NOTE[key]}
+                  </span>
+                  <span className="pointer-events-none absolute bottom-1 left-1/2 -translate-x-1/2 text-[8px] font-mono text-zinc-600 opacity-45 sm:right-2 sm:left-auto sm:translate-x-0 sm:text-[10px]">
+                    {key.toUpperCase()}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="pointer-events-none absolute top-0 right-0 left-0">
+              {BLACK_KEYS.map(({ key, leftClass }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onPointerDown={(e) => {
+                    e.preventDefault()
+                    setPressedKeys((prev) => {
+                      const next = new Set(prev)
+                      next.add(key)
+                      return next
+                    })
+                    handlePlayedNote(KEY_TO_NOTE[key])
+                  }}
+                  onPointerUp={(e) => {
+                    e.preventDefault()
+                    setPressedKeys((prev) => {
+                      const next = new Set(prev)
+                      next.delete(key)
+                      return next
+                    })
+                  }}
+                  onPointerCancel={() =>
+                    setPressedKeys((prev) => {
+                      const next = new Set(prev)
+                      next.delete(key)
+                      return next
+                    })
+                  }
+                  onPointerLeave={() =>
+                    setPressedKeys((prev) => {
+                      const next = new Set(prev)
+                      next.delete(key)
+                      return next
+                    })
+                  }
+                  className={[
+                    'pointer-events-auto absolute flex aspect-[3/8] w-[6.25%] rounded border border-zinc-900 bg-zinc-900 shadow-lg transition dark:bg-zinc-950',
+                    leftClass,
+                    pressedKeys.has(key) ? 'bg-zinc-700 ring-1 ring-zinc-200/25' : '',
+                  ].join(' ')}
+                >
+                  <span className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 text-[10px] font-semibold tracking-tight text-zinc-100 sm:right-1.5 sm:left-auto sm:translate-x-0 sm:text-xs">
+                    {KEY_TO_NOTE[key]}
+                  </span>
+                  <span className="pointer-events-none absolute bottom-1 left-1/2 -translate-x-1/2 text-[8px] font-mono text-zinc-100 opacity-45 sm:right-1.5 sm:left-auto sm:translate-x-0 sm:text-[10px]">
+                    {key.toUpperCase()}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>

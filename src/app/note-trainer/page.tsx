@@ -14,6 +14,9 @@ const SUBSTACK_URL = process.env.NEXT_PUBLIC_SUBSTACK_URL as string
 const INSTAGRAM_URL = process.env.NEXT_PUBLIC_INSTAGRAM_URL as string
 const GITHUB_URL = process.env.NEXT_PUBLIC_GITHUB_URL as string
 const LINKEDIN_URL = process.env.NEXT_PUBLIC_LINKEDIN_URL as string
+const TAGLINE =
+  process.env.NEXT_PUBLIC_TAGLINE ??
+  'If Kiano helped you find your rhythm, coffee keeps it playing.'
 const noteTrainerOgImage = resolveOgImage('/note-trainer-graph.png')
 
 export const metadata: Metadata = {
@@ -52,7 +55,7 @@ function SocialLink({
 export default function NoteTrainerPage() {
   return (
     <Container className="py-16 sm:py-20">
-      <div className="mx-auto w-full max-w-3xl space-y-8">
+      <div className="mx-auto w-full max-w-4xl space-y-8">
         <header className="space-y-3">
           <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl dark:text-zinc-100">
             Note Trainer
@@ -61,6 +64,9 @@ export default function NoteTrainerPage() {
             <li>Play the target note shown on the staff.</li>
             <li>Use Speed to set 3s, 5s, or 8s per note.</li>
             <li>Correct note grows streak, misses reset streak.</li>
+            <li>
+              This keyboard shows full note+octave labels (C4, D#4), while free play keeps simpler labels for faster jamming.
+            </li>
           </ul>
         </header>
 
@@ -73,6 +79,9 @@ export default function NoteTrainerPage() {
             <SocialLink href={GITHUB_URL} label="GitHub" icon={GitHubIcon} />
             <SocialLink href={LINKEDIN_URL} label="LinkedIn" icon={LinkedInIcon} />
           </div>
+          <p className="mx-auto mb-4 max-w-xl text-center text-sm text-zinc-500 italic dark:text-zinc-400">
+            {TAGLINE}
+          </p>
           <div className="mt-6 flex items-center justify-center gap-x-6">
             <BuyMeACoffee />
           </div>
