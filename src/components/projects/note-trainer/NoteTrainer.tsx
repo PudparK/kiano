@@ -1,17 +1,18 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import * as Tone from 'tone'
 import Staff from '@/components/projects/note-trainer/Staff'
+import { disposeMissSound, playMissSound } from '@/lib/sounds/playMissSound'
+import { disposeSuccessSound, playSuccessSound } from '@/lib/sounds/playSuccessSound'
 import {
   KEY_TO_NOTE,
   NOTE_ORDER,
   keyToNoteName,
-  midiToFreq,
-  noteNameToMidi,
 } from '@/components/projects/keyboard-piano/pianoMapping'
 
 const ADVANCE_DELAY_MS = 400
-const SPEED_OPTIONS = [3, 5, 8] as const
+const SPEED_OPTIONS = [3, 5, 8, 'none'] as const
 const SPEED_STORAGE_KEY = 'noteTrainerSpeed'
 const WHITE_KEYS = ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';'] as const
 const BLACK_KEYS = [
@@ -25,6 +26,7 @@ const BLACK_KEYS = [
 ] as const
 
 type GameState = 'idle' | 'running' | 'paused'
+type SpeedOption = (typeof SPEED_OPTIONS)[number]
 
 function nextNote(prev: string | null) {
   const pool = NOTE_ORDER.filter((note) => note !== prev)
@@ -33,12 +35,14 @@ function nextNote(prev: string | null) {
 }
 
 export default function NoteTrainer() {
+  type TrainerKey = keyof typeof KEY_TO_NOTE
+
   const [gameState, setGameState] = useState<GameState>('idle')
   const [targetNote, setTargetNote] = useState<string>(NOTE_ORDER[0])
   const [score, setScore] = useState(0)
   const [streak, setStreak] = useState(0)
   const [best, setBest] = useState(0)
-  const [timePerNote, setTimePerNote] = useState<number>(5)
+  const [timePerNote, setTimePerNote] = useState<SpeedOption>(5)
   const [timeLeftMs, setTimeLeftMs] = useState(5000)
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(() => new Set())
 
@@ -48,12 +52,16 @@ export default function NoteTrainer() {
   const beginRoundRef = useRef<(note: string) => void>(() => {})
   const roundResolvedRef = useRef(false)
   const speedLoadedRef = useRef(false)
-
-  const audioCtxRef = useRef<AudioContext | null>(null)
-  const masterGainRef = useRef<GainNode | null>(null)
+  const pointerToKeyRef = useRef<Map<number, TrainerKey>>(new Map())
+  const pianoGainRef = useRef<Tone.Gain | null>(null)
+  const pianoSamplerRef = useRef<Tone.Sampler | null>(null)
+  const pianoLoadPromiseRef = useRef<Promise<void> | null>(null)
 
   const timeRatio = useMemo(
-    () => Math.max(0, Math.min(1, timeLeftMs / (timePerNote * 1000))),
+    () => {
+      if (timePerNote === 'none') return 1
+      return Math.max(0, Math.min(1, timeLeftMs / (timePerNote * 1000)))
+    },
     [timeLeftMs, timePerNote],
   )
 
@@ -72,72 +80,85 @@ export default function NoteTrainer() {
     }
   }, [])
 
-  const ensureAudio = useCallback(async () => {
-    if (!audioCtxRef.current) {
-      const AudioCtx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-      if (!AudioCtx) return null
-      const ctx = new AudioCtx()
-      const master = ctx.createGain()
-      master.gain.value = 0.2
-      master.connect(ctx.destination)
-      audioCtxRef.current = ctx
-      masterGainRef.current = master
+  const ensurePianoSampler = useCallback(() => {
+    if (!pianoGainRef.current) {
+      pianoGainRef.current = new Tone.Gain(0.2).toDestination()
     }
 
-    if (audioCtxRef.current.state === 'suspended') {
-      await audioCtxRef.current.resume()
+    if (!pianoSamplerRef.current && pianoGainRef.current) {
+      pianoSamplerRef.current = new Tone.Sampler({
+        urls: {
+          A0: 'A0.mp3',
+          C1: 'C1.mp3',
+          'D#1': 'Ds1.mp3',
+          'F#1': 'Fs1.mp3',
+          A1: 'A1.mp3',
+          C2: 'C2.mp3',
+          'D#2': 'Ds2.mp3',
+          'F#2': 'Fs2.mp3',
+          A2: 'A2.mp3',
+          C3: 'C3.mp3',
+          'D#3': 'Ds3.mp3',
+          'F#3': 'Fs3.mp3',
+          A3: 'A3.mp3',
+          C4: 'C4.mp3',
+          'D#4': 'Ds4.mp3',
+          'F#4': 'Fs4.mp3',
+          A4: 'A4.mp3',
+          C5: 'C5.mp3',
+          'D#5': 'Ds5.mp3',
+          'F#5': 'Fs5.mp3',
+          A5: 'A5.mp3',
+          C6: 'C6.mp3',
+          'D#6': 'Ds6.mp3',
+          'F#6': 'Fs6.mp3',
+          A6: 'A6.mp3',
+          C7: 'C7.mp3',
+          'D#7': 'Ds7.mp3',
+          'F#7': 'Fs7.mp3',
+          A7: 'A7.mp3',
+          C8: 'C8.mp3',
+        },
+        release: 1.2,
+        baseUrl: 'https://tonejs.github.io/audio/salamander/',
+      }).connect(pianoGainRef.current)
+      pianoLoadPromiseRef.current = Tone.loaded()
     }
-
-    return audioCtxRef.current
   }, [])
 
-  const playTone = useCallback(
-    async (freq: number, type: OscillatorType, durationMs: number, gainValue: number) => {
-      const ctx = await ensureAudio()
-      const master = masterGainRef.current
-      if (!ctx || !master) return
+  const ensurePiano = useCallback(async () => {
+    await Tone.start()
+    ensurePianoSampler()
 
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.type = type
-      osc.frequency.setValueAtTime(freq, ctx.currentTime)
+    if (pianoLoadPromiseRef.current) {
+      await pianoLoadPromiseRef.current
+    }
 
-      gain.gain.setValueAtTime(0.0001, ctx.currentTime)
-      gain.gain.exponentialRampToValueAtTime(gainValue, ctx.currentTime + 0.01)
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + durationMs / 1000)
+    return pianoSamplerRef.current?.loaded ? pianoSamplerRef.current : null
+  }, [ensurePianoSampler])
 
-      osc.connect(gain)
-      gain.connect(master)
-      osc.start()
-      osc.stop(ctx.currentTime + durationMs / 1000 + 0.02)
-    },
-    [ensureAudio],
-  )
+  useEffect(() => {
+    ensurePianoSampler()
+  }, [ensurePianoSampler])
 
   const playNote = useCallback(
     async (note: string) => {
-      const midi = noteNameToMidi(note)
-      if (midi == null) return
-      await playTone(midiToFreq(midi), 'triangle', 220, 0.12)
+      const sampler = await ensurePiano()
+      if (!sampler) return
+      sampler.triggerAttackRelease(note, 0.35)
     },
-    [playTone],
+    [ensurePiano],
   )
-
-  const playSuccess = useCallback(async () => {
-    await playTone(880, 'sine', 180, 0.1)
-  }, [playTone])
-
-  const playFail = useCallback(async () => {
-    await playTone(180, 'square', 220, 0.16)
-  }, [playTone])
 
   const beginRound = useCallback(
     (note: string) => {
-      const roundMs = timePerNote * 1000
+      const roundMs = timePerNote === 'none' ? null : timePerNote * 1000
       clearRoundTimers()
       roundResolvedRef.current = false
       setTargetNote(note)
-      setTimeLeftMs(roundMs)
+      setTimeLeftMs(roundMs ?? 0)
+
+      if (roundMs == null) return
 
       const startedAt = performance.now()
 
@@ -150,7 +171,7 @@ export default function NoteTrainer() {
         if (roundResolvedRef.current) return
         roundResolvedRef.current = true
         setStreak(0)
-        void playFail()
+        playMissSound()
         clearRoundTimers()
 
         advanceRef.current = setTimeout(() => {
@@ -162,7 +183,7 @@ export default function NoteTrainer() {
         }, ADVANCE_DELAY_MS)
       }, roundMs)
     },
-    [clearRoundTimers, gameState, playFail, timePerNote],
+    [clearRoundTimers, gameState, timePerNote],
   )
 
   useEffect(() => {
@@ -170,14 +191,14 @@ export default function NoteTrainer() {
   }, [beginRound])
 
   const startGame = useCallback(async () => {
-    await ensureAudio()
+    await Tone.start()
     setGameState('running')
     setTargetNote(() => {
       const seed = nextNote(null)
       beginRound(seed)
       return seed
     })
-  }, [beginRound, ensureAudio])
+  }, [beginRound])
 
   const pauseGame = useCallback(() => {
     setGameState('paused')
@@ -185,10 +206,10 @@ export default function NoteTrainer() {
   }, [clearRoundTimers])
 
   const resumeGame = useCallback(async () => {
-    await ensureAudio()
+    await Tone.start()
     setGameState('running')
     beginRound(targetNote)
-  }, [beginRound, ensureAudio, targetNote])
+  }, [beginRound, targetNote])
 
   const resetGame = useCallback(() => {
     clearRoundTimers()
@@ -196,7 +217,7 @@ export default function NoteTrainer() {
     setScore(0)
     setStreak(0)
     setBest(0)
-    setTimeLeftMs(timePerNote * 1000)
+    setTimeLeftMs(timePerNote === 'none' ? 0 : timePerNote * 1000)
     setTargetNote((prev) => nextNote(prev))
   }, [clearRoundTimers, timePerNote])
 
@@ -204,8 +225,12 @@ export default function NoteTrainer() {
     if (typeof window === 'undefined') return
     try {
       const raw = window.localStorage.getItem(SPEED_STORAGE_KEY)
-      const parsed = Number(raw)
-      if (SPEED_OPTIONS.includes(parsed as (typeof SPEED_OPTIONS)[number])) {
+      if (raw === 'none') {
+        setTimePerNote('none')
+        setTimeLeftMs(0)
+      } else {
+        const parsed = Number(raw) as 3 | 5 | 8
+        if (!SPEED_OPTIONS.includes(parsed)) return
         setTimePerNote(parsed)
         setTimeLeftMs(parsed * 1000)
       }
@@ -227,9 +252,9 @@ export default function NoteTrainer() {
   }, [timePerNote])
 
   const handleSpeedChange = useCallback(
-    (speed: (typeof SPEED_OPTIONS)[number]) => {
+    (speed: SpeedOption) => {
       setTimePerNote(speed)
-      setTimeLeftMs(speed * 1000)
+      setTimeLeftMs(speed === 'none' ? 0 : speed * 1000)
       if (gameState === 'running') {
         beginRound(targetNote)
       }
@@ -242,11 +267,14 @@ export default function NoteTrainer() {
       void playNote(playedNote)
 
       if (gameState !== 'running' || roundResolvedRef.current) return
-      if (playedNote !== targetNote) return
+      if (playedNote !== targetNote) {
+        playMissSound()
+        return
+      }
 
       roundResolvedRef.current = true
       clearRoundTimers()
-      void playSuccess()
+      playSuccessSound()
       setScore((prev) => prev + 1)
       setStreak((prev) => {
         const next = prev + 1
@@ -262,7 +290,49 @@ export default function NoteTrainer() {
         })
       }, ADVANCE_DELAY_MS)
     },
-    [beginRound, clearRoundTimers, gameState, playNote, playSuccess, targetNote],
+    [beginRound, clearRoundTimers, gameState, playNote, targetNote],
+  )
+
+  const setPressed = useCallback((key: TrainerKey, isDown: boolean) => {
+    setPressedKeys((prev) => {
+      const next = new Set(prev)
+      if (isDown) next.add(key)
+      else next.delete(key)
+      return next
+    })
+  }, [])
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLButtonElement>, key: TrainerKey) => {
+      e.preventDefault()
+      e.currentTarget.setPointerCapture(e.pointerId)
+      pointerToKeyRef.current.set(e.pointerId, key)
+      setPressed(key, true)
+      handlePlayedNote(KEY_TO_NOTE[key])
+    },
+    [handlePlayedNote, setPressed],
+  )
+
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent<HTMLButtonElement>) => {
+      e.preventDefault()
+      const key = pointerToKeyRef.current.get(e.pointerId)
+      if (key) setPressed(key, false)
+      pointerToKeyRef.current.delete(e.pointerId)
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId)
+      }
+    },
+    [setPressed],
+  )
+
+  const handlePointerCancel = useCallback(
+    (e: React.PointerEvent<HTMLButtonElement>) => {
+      const key = pointerToKeyRef.current.get(e.pointerId)
+      if (key) setPressed(key, false)
+      pointerToKeyRef.current.delete(e.pointerId)
+    },
+    [setPressed],
   )
 
   useEffect(() => {
@@ -308,6 +378,7 @@ export default function NoteTrainer() {
       setGameState((prev) => (prev === 'running' ? 'paused' : prev))
       clearRoundTimers()
       setPressedKeys(new Set())
+      pointerToKeyRef.current.clear()
     }
 
     const onVisibility = () => {
@@ -323,11 +394,16 @@ export default function NoteTrainer() {
   }, [clearRoundTimers])
 
   useEffect(() => {
+    const pointerMap = pointerToKeyRef.current
     return () => {
       clearRoundTimers()
-      if (audioCtxRef.current) {
-        void audioCtxRef.current.close()
-      }
+      pointerMap.clear()
+      disposeMissSound()
+      disposeSuccessSound()
+      pianoSamplerRef.current?.dispose()
+      pianoGainRef.current?.dispose()
+      pianoSamplerRef.current = null
+      pianoGainRef.current = null
     }
   }, [clearRoundTimers])
 
@@ -354,7 +430,7 @@ export default function NoteTrainer() {
             <button
               type="button"
               onClick={pauseGame}
-              className="rounded-md bg-zinc-900 px-3 py-2 text-sm text-zinc-100 transition hover:bg-zinc-800 dark:bg-zinc-200 dark:text-zinc-900 dark:hover:bg-zinc-300"
+              className="cursor-pointer rounded-md bg-zinc-900 px-3 py-2 text-sm text-zinc-100 transition hover:bg-zinc-800 dark:bg-zinc-200 dark:text-zinc-900 dark:hover:bg-zinc-300"
             >
               Pause
             </button>
@@ -362,7 +438,7 @@ export default function NoteTrainer() {
             <button
               type="button"
               onClick={gameState === 'idle' ? startGame : resumeGame}
-              className="rounded-md bg-[#67c2a0] px-3 py-2 text-sm text-white transition hover:bg-[#5db596]"
+              className="cursor-pointer rounded-md bg-[#67c2a0] px-3 py-2 text-sm text-white transition hover:bg-[#5db596]"
             >
               {gameState === 'idle' ? 'Start' : 'Resume'}
             </button>
@@ -370,7 +446,7 @@ export default function NoteTrainer() {
           <button
             type="button"
             onClick={resetGame}
-            className="rounded-md bg-zinc-200 px-3 py-2 text-sm text-zinc-700 transition hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+            className="cursor-pointer rounded-md bg-zinc-200 px-3 py-2 text-sm text-zinc-700 transition hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
           >
             Reset
           </button>
@@ -383,20 +459,20 @@ export default function NoteTrainer() {
                 type="button"
                 onClick={() => handleSpeedChange(speed)}
                 className={[
-                  'rounded-full px-3 py-1 text-sm transition',
+                  'cursor-pointer rounded-full px-3 py-1 text-sm transition',
                   timePerNote === speed
                     ? 'bg-green-500/20 text-green-300 ring-1 ring-green-400/40'
                     : 'bg-white/5 text-neutral-300 hover:bg-white/10',
                 ].join(' ')}
               >
-                {speed}s
+                {speed === 'none' ? 'Off' : `${speed}s`}
               </button>
             ))}
           </div>
         </div>
 
         <p className="text-sm text-zinc-600 dark:text-zinc-300">
-          Time: {(timeLeftMs / 1000).toFixed(1)}s
+          Time: {timePerNote === 'none' ? 'Off' : `${(timeLeftMs / 1000).toFixed(1)}s`}
         </p>
       </div>
 
@@ -423,37 +499,10 @@ export default function NoteTrainer() {
                 <button
                   key={key}
                   type="button"
-                  onPointerDown={(e) => {
-                    e.preventDefault()
-                    setPressedKeys((prev) => {
-                      const next = new Set(prev)
-                      next.add(key)
-                      return next
-                    })
-                    handlePlayedNote(KEY_TO_NOTE[key])
-                  }}
-                  onPointerUp={(e) => {
-                    e.preventDefault()
-                    setPressedKeys((prev) => {
-                      const next = new Set(prev)
-                      next.delete(key)
-                      return next
-                    })
-                  }}
-                  onPointerCancel={() =>
-                    setPressedKeys((prev) => {
-                      const next = new Set(prev)
-                      next.delete(key)
-                      return next
-                    })
-                  }
-                  onPointerLeave={() =>
-                    setPressedKeys((prev) => {
-                      const next = new Set(prev)
-                      next.delete(key)
-                      return next
-                    })
-                  }
+                  onPointerDown={(e) => handlePointerDown(e, key)}
+                  onPointerUp={handlePointerUp}
+                  onPointerCancel={handlePointerCancel}
+                  onLostPointerCapture={handlePointerCancel}
                   className={[
                     'relative flex aspect-[1/2.5] min-w-0 w-full cursor-pointer rounded bg-white shadow-sm transition dark:bg-zinc-100',
                     pressedKeys.has(key)
@@ -476,37 +525,10 @@ export default function NoteTrainer() {
                 <button
                   key={key}
                   type="button"
-                  onPointerDown={(e) => {
-                    e.preventDefault()
-                    setPressedKeys((prev) => {
-                      const next = new Set(prev)
-                      next.add(key)
-                      return next
-                    })
-                    handlePlayedNote(KEY_TO_NOTE[key])
-                  }}
-                  onPointerUp={(e) => {
-                    e.preventDefault()
-                    setPressedKeys((prev) => {
-                      const next = new Set(prev)
-                      next.delete(key)
-                      return next
-                    })
-                  }}
-                  onPointerCancel={() =>
-                    setPressedKeys((prev) => {
-                      const next = new Set(prev)
-                      next.delete(key)
-                      return next
-                    })
-                  }
-                  onPointerLeave={() =>
-                    setPressedKeys((prev) => {
-                      const next = new Set(prev)
-                      next.delete(key)
-                      return next
-                    })
-                  }
+                  onPointerDown={(e) => handlePointerDown(e, key)}
+                  onPointerUp={handlePointerUp}
+                  onPointerCancel={handlePointerCancel}
+                  onLostPointerCapture={handlePointerCancel}
                   className={[
                     'pointer-events-auto absolute flex aspect-[3/8] w-[6.25%] rounded border border-zinc-900 bg-zinc-900 shadow-lg transition dark:bg-zinc-950',
                     leftClass,

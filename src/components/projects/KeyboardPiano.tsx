@@ -77,14 +77,18 @@ function PianoKey({
       type="button"
       onPointerDown={async (e) => {
         e.preventDefault()
+        e.currentTarget.setPointerCapture(e.pointerId)
         await onDown(physicalKey)
       }}
       onPointerUp={(e) => {
         e.preventDefault()
+        if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+          e.currentTarget.releasePointerCapture(e.pointerId)
+        }
         onUp(physicalKey)
       }}
       onPointerCancel={() => onUp(physicalKey)}
-      onPointerLeave={() => onUp(physicalKey)}
+      onLostPointerCapture={() => onUp(physicalKey)}
       className={[className, down ? downStyles : ''].join(' ')}
       title={`Key "${physicalKey}"`}
     >
@@ -115,10 +119,12 @@ function PianoKey({
 export default function KeyboardPiano() {
   const synthRef = useRef<Tone.PolySynth<Tone.Synth> | null>(null)
   const pianoSamplerRef = useRef<Tone.Sampler | null>(null)
+  const pianoLoadPromiseRef = useRef<Promise<void> | null>(null)
   const gainRef = useRef<Tone.Gain | null>(null)
   const activeNotesRef = useRef<Map<string, { midi: number; instrument: InstrumentKind }>>(
     new Map(),
   )
+  const heldKeysRef = useRef<Set<string>>(new Set())
   const octaveShiftRef = useRef(0)
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null)
 
@@ -133,9 +139,7 @@ export default function KeyboardPiano() {
   const [isPlayOpen, setIsPlayOpen] = useState(false)
   const settingsLoadedRef = useRef(false)
 
-  const ensureAudio = useCallback(async () => {
-    await Tone.start()
-
+  const ensureNodes = useCallback(() => {
     if (!gainRef.current) {
       const gain = new Tone.Gain(volume).toDestination()
       gainRef.current = gain
@@ -155,6 +159,7 @@ export default function KeyboardPiano() {
     }
 
     if (!pianoSamplerRef.current && gainRef.current) {
+      setIsPianoLoaded(false)
       const sampler = new Tone.Sampler({
         urls: {
           A0: 'A0.mp3',
@@ -194,13 +199,22 @@ export default function KeyboardPiano() {
       }).connect(gainRef.current)
 
       pianoSamplerRef.current = sampler
-    } else {
-      gainRef.current.gain.rampTo(volume, 0.02)
-      synthRef.current?.set({ oscillator: { type: toSynthWaveform(waveform) } })
+      pianoLoadPromiseRef.current = Tone.loaded()
     }
+  }, [volume, waveform])
+
+  const ensureAudio = useCallback(async () => {
+    await Tone.start()
+    ensureNodes()
+    gainRef.current?.gain.rampTo(volume, 0.02)
+    synthRef.current?.set({ oscillator: { type: toSynthWaveform(waveform) } })
 
     setIsAudioReady(true)
-  }, [volume, waveform])
+  }, [ensureNodes, volume, waveform])
+
+  useEffect(() => {
+    ensureNodes()
+  }, [ensureNodes])
 
   const setMasterVolume = useCallback((nextVolume: number) => {
     setVolume(nextVolume)
@@ -212,9 +226,27 @@ export default function KeyboardPiano() {
   const noteOn = useCallback(async (physicalKey: string) => {
     const baseMidi = PIANO_KEY_TO_MIDI[physicalKey]
     if (baseMidi == null) return
+    heldKeysRef.current.add(physicalKey)
+
+    setPressedKeys((prev) => {
+      const next = new Set(prev)
+      next.add(physicalKey)
+      return next
+    })
+
     if (activeNotesRef.current.has(physicalKey)) return
 
     await ensureAudio()
+    if (waveform === 'piano' && pianoSamplerRef.current && !pianoSamplerRef.current.loaded) {
+      if (!pianoLoadPromiseRef.current) {
+        pianoLoadPromiseRef.current = Tone.loaded()
+      }
+      await pianoLoadPromiseRef.current
+      setIsPianoLoaded(pianoSamplerRef.current.loaded)
+    }
+    if (!heldKeysRef.current.has(physicalKey)) return
+    if (activeNotesRef.current.has(physicalKey)) return
+
     const useSampler = waveform === 'piano' && pianoSamplerRef.current?.loaded === true
     const instrument = useSampler ? pianoSamplerRef.current : synthRef.current
     if (!instrument) return
@@ -226,15 +258,16 @@ export default function KeyboardPiano() {
       midi,
       instrument: useSampler ? 'sampler' : 'synth',
     })
-
-    setPressedKeys((prev) => {
-      const next = new Set(prev)
-      next.add(physicalKey)
-      return next
-    })
   }, [ensureAudio, waveform])
 
   const noteOff = useCallback((physicalKey: string) => {
+    heldKeysRef.current.delete(physicalKey)
+    setPressedKeys((prev) => {
+      const next = new Set(prev)
+      next.delete(physicalKey)
+      return next
+    })
+
     const activeNote = activeNotesRef.current.get(physicalKey)
     if (!activeNote) return
 
@@ -245,12 +278,6 @@ export default function KeyboardPiano() {
       synthRef.current?.triggerRelease(note)
     }
     activeNotesRef.current.delete(physicalKey)
-
-    setPressedKeys((prev) => {
-      const next = new Set(prev)
-      next.delete(physicalKey)
-      return next
-    })
   }, [])
 
   const stopAll = useCallback(() => {
@@ -263,6 +290,7 @@ export default function KeyboardPiano() {
       }
     }
     activeNotesRef.current.clear()
+    heldKeysRef.current.clear()
     setPressedKeys(new Set())
   }, [])
 
@@ -372,6 +400,7 @@ export default function KeyboardPiano() {
       }
 
       if (PIANO_KEY_TO_MIDI[key] != null) {
+        if (e.repeat) return
         e.preventDefault()
         await noteOn(key)
       }
@@ -406,6 +435,7 @@ export default function KeyboardPiano() {
       gainRef.current?.dispose()
       synthRef.current = null
       pianoSamplerRef.current = null
+      pianoLoadPromiseRef.current = null
       gainRef.current = null
     }
   }, [noteOff, noteOn, stopAll])
@@ -468,7 +498,7 @@ export default function KeyboardPiano() {
                   step={0.01}
                   value={volume}
                   onChange={(e) => setMasterVolume(parseFloat(e.target.value))}
-                  className="w-full accent-[#67c2a0]"
+                  className="w-full cursor-pointer accent-[#67c2a0]"
                   aria-label="Fine tune volume"
                 />
               </Field>
@@ -485,7 +515,7 @@ export default function KeyboardPiano() {
                     {WAVEFORMS.map((shape) => (
                       <Tab
                         key={shape}
-                        className="rounded-full bg-zinc-200 px-3 py-1.5 text-sm text-zinc-700 capitalize transition hover:bg-zinc-300 focus:outline-none data-selected:bg-[#67c2a0] data-selected:text-white dark:bg-white/5 dark:text-neutral-300 dark:hover:bg-white/10 dark:data-selected:bg-[#67c2a0] dark:data-selected:text-white"
+                        className="cursor-pointer rounded-full bg-zinc-200 px-3 py-1.5 text-sm text-zinc-700 capitalize transition hover:bg-zinc-300 focus:outline-none data-selected:bg-[#67c2a0] data-selected:text-white dark:bg-white/5 dark:text-neutral-300 dark:hover:bg-white/10 dark:data-selected:bg-[#67c2a0] dark:data-selected:text-white"
                       >
                         {shape}
                       </Tab>
@@ -503,7 +533,7 @@ export default function KeyboardPiano() {
                     type="button"
                     onClick={() => setShowKeyboardKeys(true)}
                     className={[
-                      'rounded-full px-3 py-1.5 text-sm transition',
+                      'cursor-pointer rounded-full px-3 py-1.5 text-sm transition',
                       showKeyboardKeys
                         ? 'bg-[#67c2a0] text-white'
                         : 'bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-white/5 dark:text-neutral-300 dark:hover:bg-white/10',
@@ -516,7 +546,7 @@ export default function KeyboardPiano() {
                     type="button"
                     onClick={() => setShowKeyboardKeys(false)}
                     className={[
-                      'rounded-full px-3 py-1.5 text-sm transition',
+                      'cursor-pointer rounded-full px-3 py-1.5 text-sm transition',
                       !showKeyboardKeys
                         ? 'bg-[#67c2a0] text-white'
                         : 'bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-white/5 dark:text-neutral-300 dark:hover:bg-white/10',
