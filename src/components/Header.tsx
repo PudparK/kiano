@@ -16,7 +16,7 @@ import { Container } from '@/components/Container'
 import Avatar from '@/components/Avatar'
 
 const navLinks = [
-  { href: '/', label: 'Free Play' },
+  { href: '/', label: 'Kiano' },
   { href: '/projects/keyboard-piano/game', label: 'Game' },
   { href: 'https://paulbarron.dev/about', label: 'About', external: true },
   { href: 'https://paulbarron.dev/articles', label: 'Articles', external: true },

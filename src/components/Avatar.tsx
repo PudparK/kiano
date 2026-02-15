@@ -19,8 +19,10 @@ export default function Avatar({
 
   return (
     <Link
-      href="/"
-      aria-label="Home"
+      href="https://paulbarron.dev"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Paul Barrón"
       className={clsx(className, 'pointer-events-auto')}
       {...props}
     >
