@@ -601,13 +601,6 @@ export default function KeyboardPiano() {
           </div>
         </div>
 
-        <div className="text-sm leading-6 text-zinc-600 dark:text-zinc-300">
-          <p>Use your keyboard to play notes.</p>
-          <p>Hold keys to sustain.</p>
-          <p>
-            Z/X shifts octaves. Current: <span className="font-mono">{octaveShift}</span>
-          </p>
-        </div>
       </div>
 
       <AboutModal open={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
