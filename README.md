@@ -1,6 +1,6 @@
 # paul-ts
 
-Personal Next.js site with an instrument-style Keyboard Piano project on the homepage.
+Personal Next.js site with Kiano on the homepage and a Note Trainer game.
 
 ## Quick Start
 
@@ -23,7 +23,7 @@ The homepage includes a playable keyboard piano built as a client component.
 ### Features
 
 - Browser keyboard mapping to notes (white + black keys)
-- Audio unlock flow (`Click to play` -> `Ready`)
+- Audio unlock flow (`Enable Sound` -> `Ready`)
 - Tone.js sampler piano with synth fallback modes (`piano`, `sine`, `triangle`)
 - Headless UI controls (`Settings` popover, waveform tabs, key label toggle)
 - About modal with project context and usage notes
@@ -35,6 +35,17 @@ The homepage includes a playable keyboard piano built as a client component.
 - Hold keys to sustain
 - `Z/X` shifts octaves
 - `Ctrl+/` (or `Cmd+/`) toggles Settings
+
+## Note Trainer
+
+The note trainer game is available at `/note-trainer`.
+
+### Features
+
+- Staff-based target note training loop
+- Score, streak, and best tracking
+- Speed selector (`3s`, `5s`, `8s`) with `localStorage` persistence
+- Pause/resume/reset controls
 
 ## Environment Variables
 
@@ -53,16 +64,20 @@ These are used by homepage social links, support CTA, and metadata.
 
 Share previews use:
 
-- `public/graph-image.png`
+- `public/kiano-graph.png`
+- `public/note-trainer-graph.png`
 
 Configured in `src/app/layout.tsx` via Open Graph and Twitter metadata.
 
 ## Main Files
 
 - `src/app/layout.tsx` - app shell, providers, metadata
-- `src/app/page.tsx` - homepage layout + piano + social/support sections
+- `src/app/page.tsx` - Kiano homepage
+- `src/app/note-trainer/page.tsx` - Note Trainer page
 - `src/components/projects/KeyboardPiano.tsx` - main piano UI/logic
 - `src/components/projects/keyboard-piano/AboutModal.tsx` - About modal content
+- `src/components/projects/keyboard-piano/PlayModal.tsx` - Note Trainer launch modal
+- `src/components/projects/note-trainer/NoteTrainer.tsx` - game logic and UI
 - `src/components/Header.tsx` - top navigation + theme toggle
 - `src/components/Footer.tsx` - footer navigation
 - `src/components/BuyMeACoffee.tsx` - support button
