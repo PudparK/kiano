@@ -90,7 +90,7 @@ function PianoKey({
     >
       <span
         className={[
-          'pointer-events-none absolute right-2 text-base font-semibold tracking-tight',
+          'pointer-events-none absolute right-1 text-sm font-semibold tracking-tight sm:right-2 sm:text-base',
           showKeyboardKey ? 'bottom-4' : 'bottom-1',
           black ? 'text-zinc-100' : 'text-zinc-700',
         ].join(' ')}
@@ -100,8 +100,8 @@ function PianoKey({
       {showKeyboardKey ? (
         <span
           className={[
-            'pointer-events-none absolute font-mono text-[10px] opacity-45',
-            black ? 'right-1.5 bottom-1' : 'right-2 bottom-1',
+            'pointer-events-none absolute font-mono text-[9px] opacity-45 sm:text-[10px]',
+            black ? 'right-1 bottom-1 sm:right-1.5' : 'right-1 bottom-1 sm:right-2',
             black ? 'text-zinc-100' : 'text-zinc-600',
           ].join(' ')}
         >
@@ -412,7 +412,7 @@ export default function KeyboardPiano() {
 
   return (
     <div className="mx-auto mb-16 w-full max-w-4xl space-y-5">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col items-start gap-2">
         {isAudioReady ? (
           <div className="flex items-center gap-2 rounded-md border border-transparent bg-green-500/10 px-3 py-2 text-sm text-green-400 ring-1 ring-green-400/30">
             Ready
@@ -427,12 +427,7 @@ export default function KeyboardPiano() {
           </button>
         )}
 
-        <div className="text-sm">
-          Octave: <span className="font-mono">{octaveShift}</span>{' '}
-          <span className="text-neutral-500">(Z/X)</span>
-        </div>
-
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setIsPlayOpen(true)}
@@ -449,7 +444,7 @@ export default function KeyboardPiano() {
               Settings
             </PopoverButton>
             <PopoverPanel
-              anchor="bottom end"
+              anchor="bottom start"
               className="z-30 mt-2 w-72 max-sm:w-[calc(100vw-2rem)] space-y-4 rounded-2xl bg-zinc-50 p-4 shadow-lg ring-1 ring-zinc-900/10 dark:bg-[#131313] dark:ring-white/10"
             >
               <Field className="space-y-2">
@@ -540,6 +535,11 @@ export default function KeyboardPiano() {
           >
             Info
           </button>
+        </div>
+
+        <div className="text-sm">
+          Octave: <span className="font-mono">{octaveShift}</span>{' '}
+          <span className="text-neutral-500">(Z/X)</span>
         </div>
       </div>
 
