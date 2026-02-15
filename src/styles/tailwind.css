@@ -1,6 +1,10 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 
+@theme {
+  --color-secondary: #67c2a0;
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 @keyframes steam {
