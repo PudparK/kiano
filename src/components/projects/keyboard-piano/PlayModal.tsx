@@ -29,7 +29,7 @@ export default function PlayModal({ open, onClose }: PlayModalProps) {
             </DialogTitle>
             <p className="text-sm leading-6 text-zinc-600 dark:text-neutral-300">
               Train note recognition against the clock. You will see one target
-              note on staff and have 3 seconds to hit the correct key.
+              note on staff and must hit the correct key before time runs out.
             </p>
           </div>
 

@@ -59,7 +59,7 @@ export default function KeyboardPianoGamePage() {
           </h1>
           <ul className="list-disc space-y-1 pl-5 text-sm text-zinc-600 dark:text-zinc-300">
             <li>Play the target note shown on the staff.</li>
-            <li>You have 3 seconds per note.</li>
+            <li>Use Speed to set 3s, 5s, or 8s per note.</li>
             <li>Correct note grows streak, misses reset streak.</li>
           </ul>
         </header>

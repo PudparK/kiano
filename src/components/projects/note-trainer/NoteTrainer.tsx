@@ -31,7 +31,7 @@ function getInitialSpeed() {
 
 export default function NoteTrainer() {
   const [gameState, setGameState] = useState<GameState>('idle')
-  const [targetNote, setTargetNote] = useState<string>(() => NOTE_ORDER[0])
+  const [targetNote, setTargetNote] = useState<string>(() => nextNote(null))
   const [score, setScore] = useState(0)
   const [streak, setStreak] = useState(0)
   const [best, setBest] = useState(0)
