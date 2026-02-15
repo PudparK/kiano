@@ -412,7 +412,7 @@ export default function KeyboardPiano() {
 
   return (
     <div className="mx-auto mb-16 w-full max-w-4xl space-y-5">
-      <div className="flex flex-col items-start gap-2">
+      <div className="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
         {isAudioReady ? (
           <div className="flex items-center gap-2 rounded-md border border-transparent bg-green-500/10 px-3 py-2 text-sm text-green-400 ring-1 ring-green-400/30">
             Ready
@@ -427,13 +427,18 @@ export default function KeyboardPiano() {
           </button>
         )}
 
-        <div className="flex items-center gap-2">
+        <div className="text-sm">
+          Octave: <span className="font-mono">{octaveShift}</span>{' '}
+          <span className="text-neutral-500">(Z/X)</span>
+        </div>
+
+        <div className="flex items-center gap-2 sm:ml-auto">
           <button
             type="button"
             onClick={() => setIsPlayOpen(true)}
             className="cursor-pointer rounded-md border border-transparent bg-zinc-200 px-3 py-2 text-zinc-700 transition hover:bg-zinc-300 dark:bg-neutral-900/70 dark:text-neutral-200 dark:ring-1 dark:ring-white/10 dark:hover:bg-neutral-900/85"
           >
-            Play
+            Note Trainer
           </button>
 
           <Popover className="relative">
@@ -444,7 +449,7 @@ export default function KeyboardPiano() {
               Settings
             </PopoverButton>
             <PopoverPanel
-              anchor="bottom start"
+              anchor="bottom end"
               className="z-30 mt-2 w-72 max-sm:w-[calc(100vw-2rem)] space-y-4 rounded-2xl bg-zinc-50 p-4 shadow-lg ring-1 ring-zinc-900/10 dark:bg-[#131313] dark:ring-white/10"
             >
               <Field className="space-y-2">
@@ -535,11 +540,6 @@ export default function KeyboardPiano() {
           >
             Info
           </button>
-        </div>
-
-        <div className="text-sm">
-          Octave: <span className="font-mono">{octaveShift}</span>{' '}
-          <span className="text-neutral-500">(Z/X)</span>
         </div>
       </div>
 

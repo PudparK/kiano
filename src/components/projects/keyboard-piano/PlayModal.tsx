@@ -41,7 +41,7 @@ export default function PlayModal({ open, onClose }: PlayModalProps) {
 
           <div className="flex items-center justify-end">
             <Link
-              href="/projects/keyboard-piano/game"
+              href="/note-trainer"
               onClick={onClose}
               className="cursor-pointer rounded-md border border-transparent bg-[#67c2a0] px-3 py-2 text-sm text-white transition hover:bg-[#5db596]"
             >

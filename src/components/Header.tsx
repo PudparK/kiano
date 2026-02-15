@@ -17,7 +17,7 @@ import Avatar from '@/components/Avatar'
 
 const navLinks = [
   { href: '/', label: 'Kiano' },
-  { href: '/projects/keyboard-piano/game', label: 'Game' },
+  { href: '/note-trainer', label: 'Note Trainer' },
   { href: 'https://paulbarron.dev/about', label: 'About', external: true },
   { href: 'https://paulbarron.dev/articles', label: 'Articles', external: true },
   { href: 'https://paulbarron.dev/projects', label: 'Projects', external: true },
