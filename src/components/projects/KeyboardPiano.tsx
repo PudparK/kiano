@@ -194,7 +194,6 @@ export default function KeyboardPiano() {
       }).connect(gainRef.current)
 
       pianoSamplerRef.current = sampler
-      sampler.onerror = () => setIsPianoLoaded(false)
     } else {
       gainRef.current.gain.rampTo(volume, 0.02)
       synthRef.current?.set({ oscillator: { type: toSynthWaveform(waveform) } })

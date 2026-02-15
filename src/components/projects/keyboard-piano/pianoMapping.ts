@@ -20,8 +20,6 @@ export const NOTE_ORDER = [
   'C5',
 ] as const
 
-type NoteName = `${'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G'}${'' | '#'}${number}`
-
 const NOTE_TO_SEMITONE: Record<string, number> = {
   C: 0,
   'C#': 1,
@@ -61,7 +59,7 @@ export function keyToNoteName(key: string) {
   return KEY_TO_NOTE[key.toLowerCase() as keyof typeof KEY_TO_NOTE] ?? null
 }
 
-export function noteNameToMidi(note: NoteName) {
+export function noteNameToMidi(note: string) {
   const match = note.match(/^([A-G]#?)(-?\d+)$/)
   if (!match) return null
   const pitchClass = match[1]
