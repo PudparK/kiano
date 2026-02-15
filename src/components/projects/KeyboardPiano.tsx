@@ -1,5 +1,4 @@
 'use client'
-
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Field,
@@ -13,26 +12,8 @@ import {
 } from '@headlessui/react'
 import * as Tone from 'tone'
 import AboutModal from '@/components/projects/keyboard-piano/AboutModal'
-
-const KEY_TO_MIDI: Record<string, number> = {
-  a: 60,
-  w: 61,
-  s: 62,
-  e: 63,
-  d: 64,
-  f: 65,
-  t: 66,
-  g: 67,
-  y: 68,
-  h: 69,
-  u: 70,
-  j: 71,
-  k: 72,
-  o: 73,
-  l: 74,
-  p: 75,
-  ';': 76,
-}
+import PlayModal from '@/components/projects/keyboard-piano/PlayModal'
+import { PIANO_KEY_TO_MIDI } from '@/components/projects/keyboard-piano/pianoMapping'
 
 const WHITE_KEYS = [
   { physicalKey: 'a', note: 'C' },
@@ -149,6 +130,7 @@ export default function KeyboardPiano() {
   const [showKeyboardKeys, setShowKeyboardKeys] = useState(true)
   const [isPianoLoaded, setIsPianoLoaded] = useState(false)
   const [isAboutOpen, setIsAboutOpen] = useState(false)
+  const [isPlayOpen, setIsPlayOpen] = useState(false)
   const settingsLoadedRef = useRef(false)
 
   const ensureAudio = useCallback(async () => {
@@ -229,7 +211,7 @@ export default function KeyboardPiano() {
   }, [])
 
   const noteOn = useCallback(async (physicalKey: string) => {
-    const baseMidi = KEY_TO_MIDI[physicalKey]
+    const baseMidi = PIANO_KEY_TO_MIDI[physicalKey]
     if (baseMidi == null) return
     if (activeNotesRef.current.has(physicalKey)) return
 
@@ -390,7 +372,7 @@ export default function KeyboardPiano() {
         return
       }
 
-      if (KEY_TO_MIDI[key] != null) {
+      if (PIANO_KEY_TO_MIDI[key] != null) {
         e.preventDefault()
         await noteOn(key)
       }
@@ -398,7 +380,7 @@ export default function KeyboardPiano() {
 
     const onKeyUp = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase()
-      if (KEY_TO_MIDI[key] != null) {
+      if (PIANO_KEY_TO_MIDI[key] != null) {
         e.preventDefault()
         noteOff(key)
       }
@@ -442,7 +424,7 @@ export default function KeyboardPiano() {
             onClick={ensureAudio}
             className="cursor-pointer rounded-md border border-transparent bg-[#67c2a0] px-3 py-2 text-white transition hover:bg-[#5db596]"
           >
-            Click to play
+            Enable Sound
           </button>
         )}
 
@@ -454,10 +436,10 @@ export default function KeyboardPiano() {
         <div className="ml-auto flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setIsAboutOpen(true)}
+            onClick={() => setIsPlayOpen(true)}
             className="cursor-pointer rounded-md border border-transparent bg-zinc-200 px-3 py-2 text-zinc-700 transition hover:bg-zinc-300 dark:bg-neutral-900/70 dark:text-neutral-200 dark:ring-1 dark:ring-white/10 dark:hover:bg-neutral-900/85"
           >
-            About
+            Play
           </button>
 
           <Popover className="relative">
@@ -549,8 +531,16 @@ export default function KeyboardPiano() {
                   Show key labels on keys.
                 </p>
               </Field>
-            </PopoverPanel>
+              </PopoverPanel>
           </Popover>
+
+          <button
+            type="button"
+            onClick={() => setIsAboutOpen(true)}
+            className="cursor-pointer rounded-md border border-transparent bg-zinc-200 px-3 py-2 text-zinc-700 transition hover:bg-zinc-300 dark:bg-neutral-900/70 dark:text-neutral-200 dark:ring-1 dark:ring-white/10 dark:hover:bg-neutral-900/85"
+          >
+            Info
+          </button>
         </div>
       </div>
 
@@ -604,6 +594,7 @@ export default function KeyboardPiano() {
       </div>
 
       <AboutModal open={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
+      <PlayModal open={isPlayOpen} onClose={() => setIsPlayOpen(false)} />
     </div>
   )
 }

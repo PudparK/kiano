@@ -16,9 +16,11 @@ import { Container } from '@/components/Container'
 import Avatar from '@/components/Avatar'
 
 const navLinks = [
-  { href: '#', label: 'About' },
-  { href: '#', label: 'Articles' },
-  { href: '#', label: 'Projects' },
+  { href: '/', label: 'Free Play' },
+  { href: '/projects/keyboard-piano/game', label: 'Game' },
+  { href: 'https://paulbarron.dev/about', label: 'About', external: true },
+  { href: 'https://paulbarron.dev/articles', label: 'Articles', external: true },
+  { href: 'https://paulbarron.dev/projects', label: 'Projects', external: true },
 ]
 
 function CloseIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
@@ -132,7 +134,13 @@ function MobileNavigation() {
           <ul className="-my-2 divide-y divide-zinc-100 text-base text-zinc-800 dark:divide-zinc-100/5 dark:text-zinc-300">
             {navLinks.map((link) => (
               <li key={link.label}>
-                <PopoverButton as={Link} href={link.href} className="block py-2">
+                <PopoverButton
+                  as={Link}
+                  href={link.href}
+                  target={link.external ? '_blank' : undefined}
+                  rel={link.external ? 'noopener noreferrer' : undefined}
+                  className="block py-2"
+                >
                   {link.label}
                 </PopoverButton>
               </li>
@@ -157,6 +165,8 @@ function DesktopNavigation() {
             <li key={link.label}>
               <Link
                 href={link.href}
+                target={link.external ? '_blank' : undefined}
+                rel={link.external ? 'noopener noreferrer' : undefined}
                 className={clsx(
                   'relative block px-3 py-2 transition',
                   isActive

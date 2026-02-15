@@ -12,6 +12,8 @@ function NavLink({
   return (
     <Link
       href={href}
+      target="_blank"
+      rel="noopener noreferrer"
       className="transition hover:text-secondary dark:hover:text-secondary"
     >
       {children}
@@ -27,12 +29,12 @@ export function Footer() {
           <ContainerInner>
             <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
               <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                <NavLink href="#">About</NavLink>
-                <NavLink href="#">Articles</NavLink>
-                <NavLink href="#">Projects</NavLink>
+                <NavLink href="https://paulbarron.dev/about">About</NavLink>
+                <NavLink href="https://paulbarron.dev/articles">Articles</NavLink>
+                <NavLink href="https://paulbarron.dev/projects">Projects</NavLink>
               </div>
               <p className="text-sm text-zinc-400 dark:text-zinc-500">
-                &copy; {new Date().getFullYear()} Your Name. All rights reserved.
+                &copy; {new Date().getFullYear()} Paul Barrón. All rights reserved.
               </p>
             </div>
           </ContainerInner>
